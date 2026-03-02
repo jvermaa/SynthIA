@@ -1,10 +1,14 @@
 """
-tools.py — Gemini function declaration schemas for all SynthIA / AbletonMCP commands.
+tools.py — Anthropic tool schemas for all SynthIA / AbletonMCP commands.
 
-ALL_TOOLS is a list of dicts in Gemini FunctionDeclaration format:
-  {"name": str, "description": str, "parameters": <JSON schema>}
+Tools are split into three groups to limit tokens per call:
 
-agent.py wraps these in types.Tool(function_declarations=[types.FunctionDeclaration(**t) ...]).
+  CORE_TOOLS    — always included (~60% of tool tokens)
+  BROWSER_TOOLS — added when user mentions instruments/sounds/loading
+  MIXING_TOOLS  — added when user mentions mixing/effects/devices
+
+Use select_tools() in agent.py to pick the right subset.
+ALL_TOOLS is the full union, kept for reference.
 """
 from __future__ import annotations
 
@@ -16,7 +20,7 @@ def _tool(name: str, description: str, properties: dict, required: list) -> dict
     return {
         "name": name,
         "description": description,
-        "parameters": {
+        "input_schema": {
             "type": "object",
             "properties": properties,
             "required": required,
@@ -480,10 +484,14 @@ GET_BROWSER_ITEMS_AT_PATH = _tool(
 )
 
 # ---------------------------------------------------------------------------
-# Master list
+# Tool groups — used by select_tools() in agent.py
+#
+# CORE_TOOLS    : always sent (~60% of tool tokens)
+# BROWSER_TOOLS : added when user mentions instruments / sounds / loading
+# MIXING_TOOLS  : added when user mentions mixing / effects / devices
 # ---------------------------------------------------------------------------
 
-ALL_TOOLS: list[dict] = [
+CORE_TOOLS: list[dict] = [
     # Session / playback
     GET_SESSION_STATE,
     SET_TEMPO,
@@ -493,18 +501,12 @@ ALL_TOOLS: list[dict] = [
     # Track management
     CREATE_MIDI_TRACK,
     CREATE_AUDIO_TRACK,
-    CREATE_RETURN_TRACK,
     DELETE_TRACK,
     SET_TRACK_NAME,
-    # Mixing
+    # Basic mixing (volume/pan always useful)
     SET_TRACK_VOLUME,
     SET_TRACK_PAN,
     ARM_TRACK,
-    MUTE_TRACK,
-    SOLO_TRACK,
-    # Devices
-    SET_DEVICE_PARAMETER,
-    LOAD_INSTRUMENT_OR_EFFECT,
     # Clips
     CREATE_CLIP,
     SET_CLIP_NAME,
@@ -516,7 +518,20 @@ ALL_TOOLS: list[dict] = [
     # Scenes
     CREATE_SCENE,
     FIRE_SCENE,
-    # Browser
+]
+
+BROWSER_TOOLS: list[dict] = [
     GET_BROWSER_TREE,
     GET_BROWSER_ITEMS_AT_PATH,
+    LOAD_INSTRUMENT_OR_EFFECT,
 ]
+
+MIXING_TOOLS: list[dict] = [
+    SET_DEVICE_PARAMETER,
+    CREATE_RETURN_TRACK,
+    MUTE_TRACK,
+    SOLO_TRACK,
+]
+
+# Full union — for reference / tests
+ALL_TOOLS: list[dict] = CORE_TOOLS + BROWSER_TOOLS + MIXING_TOOLS

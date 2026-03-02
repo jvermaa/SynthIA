@@ -223,13 +223,14 @@ class AbletonMCP(ControlSurface):
             if command_type == "get_session_info":
                 response["result"] = self._get_session_info()
             elif command_type == "get_track_info":
-                track_index = params.get("track_index", 0)
+                track_index = int(params.get("track_index", 0))
                 response["result"] = self._get_track_info(track_index)
             # Commands that modify Live's state should be scheduled on the main thread
             elif command_type in ["create_midi_track", "set_track_name",
                                  "create_clip", "add_notes_to_clip", "set_clip_name",
                                  "set_tempo", "fire_clip", "stop_clip",
                                  "start_playback", "stop_playback", "load_browser_item",
+                                 "load_instrument_or_effect",
                                  "create_audio_track", "create_return_track", "delete_track",
                                  "set_track_volume", "set_track_pan", "set_device_parameter",
                                  "arm_track", "mute_track", "solo_track",
@@ -243,96 +244,96 @@ class AbletonMCP(ControlSurface):
                     try:
                         result = None
                         if command_type == "create_midi_track":
-                            index = params.get("index", -1)
+                            index = int(params.get("index", -1))
                             result = self._create_midi_track(index)
                         elif command_type == "set_track_name":
-                            track_index = params.get("track_index", 0)
+                            track_index = int(params.get("track_index", 0))
                             name = params.get("name", "")
                             result = self._set_track_name(track_index, name)
                         elif command_type == "create_clip":
-                            track_index = params.get("track_index", 0)
-                            clip_index = params.get("clip_index", 0)
-                            length = params.get("length", 4.0)
+                            track_index = int(params.get("track_index", 0))
+                            clip_index = int(params.get("clip_index", 0))
+                            length = float(params.get("length", 4.0))
                             result = self._create_clip(track_index, clip_index, length)
                         elif command_type == "add_notes_to_clip":
-                            track_index = params.get("track_index", 0)
-                            clip_index = params.get("clip_index", 0)
+                            track_index = int(params.get("track_index", 0))
+                            clip_index = int(params.get("clip_index", 0))
                             notes = params.get("notes", [])
                             result = self._add_notes_to_clip(track_index, clip_index, notes)
                         elif command_type == "set_clip_name":
-                            track_index = params.get("track_index", 0)
-                            clip_index = params.get("clip_index", 0)
+                            track_index = int(params.get("track_index", 0))
+                            clip_index = int(params.get("clip_index", 0))
                             name = params.get("name", "")
                             result = self._set_clip_name(track_index, clip_index, name)
                         elif command_type == "set_tempo":
-                            tempo = params.get("tempo", 120.0)
+                            tempo = float(params.get("tempo", 120.0))
                             result = self._set_tempo(tempo)
                         elif command_type == "fire_clip":
-                            track_index = params.get("track_index", 0)
-                            clip_index = params.get("clip_index", 0)
+                            track_index = int(params.get("track_index", 0))
+                            clip_index = int(params.get("clip_index", 0))
                             result = self._fire_clip(track_index, clip_index)
                         elif command_type == "stop_clip":
-                            track_index = params.get("track_index", 0)
-                            clip_index = params.get("clip_index", 0)
+                            track_index = int(params.get("track_index", 0))
+                            clip_index = int(params.get("clip_index", 0))
                             result = self._stop_clip(track_index, clip_index)
                         elif command_type == "start_playback":
                             result = self._start_playback()
                         elif command_type == "stop_playback":
                             result = self._stop_playback()
                         elif command_type == "load_instrument_or_effect":
-                            track_index = params.get("track_index", 0)
-                            uri = params.get("uri", "")
-                            result = self._load_instrument_or_effect(track_index, uri)
+                            track_index = int(params.get("track_index", 0))
+                            uri = params.get("uri") or params.get("item_uri", "")
+                            result = self._load_browser_item(track_index, uri)
                         elif command_type == "load_browser_item":
-                            track_index = params.get("track_index", 0)
-                            item_uri = params.get("item_uri", "")
+                            track_index = int(params.get("track_index", 0))
+                            item_uri = params.get("item_uri", "") or params.get("uri", "")
                             result = self._load_browser_item(track_index, item_uri)
                         elif command_type == "create_audio_track":
-                            index = params.get("index", -1)
+                            index = int(params.get("index", -1))
                             result = self._create_audio_track(index)
                         elif command_type == "create_return_track":
                             result = self._create_return_track()
                         elif command_type == "delete_track":
-                            track_index = params.get("track_index", 0)
+                            track_index = int(params.get("track_index", 0))
                             result = self._delete_track(track_index)
                         elif command_type == "set_track_volume":
-                            track_index = params.get("track_index", 0)
-                            value = params.get("value", 0.7)
+                            track_index = int(params.get("track_index", 0))
+                            value = float(params.get("value", 0.7))
                             result = self._set_track_volume(track_index, value)
                         elif command_type == "set_track_pan":
-                            track_index = params.get("track_index", 0)
-                            value = params.get("value", 0.0)
+                            track_index = int(params.get("track_index", 0))
+                            value = float(params.get("value", 0.0))
                             result = self._set_track_pan(track_index, value)
                         elif command_type == "set_device_parameter":
-                            track_index = params.get("track_index", 0)
-                            device_index = params.get("device_index", 0)
-                            parameter_index = params.get("parameter_index", 0)
-                            value = params.get("value", 0.0)
+                            track_index = int(params.get("track_index", 0))
+                            device_index = int(params.get("device_index", 0))
+                            parameter_index = int(params.get("parameter_index", 0))
+                            value = float(params.get("value", 0.0))
                             result = self._set_device_parameter(track_index, device_index, parameter_index, value)
                         elif command_type == "arm_track":
-                            track_index = params.get("track_index", 0)
+                            track_index = int(params.get("track_index", 0))
                             arm = params.get("arm", True)
                             result = self._arm_track(track_index, arm)
                         elif command_type == "mute_track":
-                            track_index = params.get("track_index", 0)
+                            track_index = int(params.get("track_index", 0))
                             mute = params.get("mute", True)
                             result = self._mute_track(track_index, mute)
                         elif command_type == "solo_track":
-                            track_index = params.get("track_index", 0)
+                            track_index = int(params.get("track_index", 0))
                             solo = params.get("solo", True)
                             result = self._solo_track(track_index, solo)
                         elif command_type == "set_time_signature":
-                            numerator = params.get("numerator", 4)
-                            denominator = params.get("denominator", 4)
+                            numerator = int(params.get("numerator", 4))
+                            denominator = int(params.get("denominator", 4))
                             result = self._set_time_signature(numerator, denominator)
                         elif command_type == "create_scene":
                             result = self._create_scene()
                         elif command_type == "fire_scene":
-                            scene_index = params.get("scene_index", 0)
+                            scene_index = int(params.get("scene_index", 0))
                             result = self._fire_scene(scene_index)
                         elif command_type == "set_clip_notes":
-                            track_index = params.get("track_index", 0)
-                            clip_index = params.get("clip_index", 0)
+                            track_index = int(params.get("track_index", 0))
+                            clip_index = int(params.get("clip_index", 0))
                             notes = params.get("notes", [])
                             result = self._set_clip_notes(track_index, clip_index, notes)
 
@@ -382,8 +383,8 @@ class AbletonMCP(ControlSurface):
             elif command_type == "get_session_state":
                 response["result"] = self._get_session_state()
             elif command_type == "get_clip_notes":
-                track_index = params.get("track_index", 0)
-                clip_index = params.get("clip_index", 0)
+                track_index = int(params.get("track_index", 0))
+                clip_index = int(params.get("clip_index", 0))
                 response["result"] = self._get_clip_notes(track_index, clip_index)
             else:
                 response["status"] = "error"
@@ -561,12 +562,12 @@ class AbletonMCP(ControlSurface):
             # Convert note data to Live's format
             live_notes = []
             for note in notes:
-                pitch = note.get("pitch", 60)
-                start_time = note.get("start_time", 0.0)
-                duration = note.get("duration", 0.25)
-                velocity = note.get("velocity", 100)
-                mute = note.get("mute", False)
-                
+                pitch = int(note.get("pitch", 60))
+                start_time = float(note.get("start_time", 0.0))
+                duration = float(note.get("duration", 0.25))
+                velocity = int(note.get("velocity", 100))
+                mute = bool(note.get("mute", False))
+
                 live_notes.append((pitch, start_time, duration, velocity, mute))
             
             # Add the notes

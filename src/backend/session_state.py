@@ -22,10 +22,19 @@ def get_session_state(connection: AbletonConnection) -> Dict[str, Any]:
     return connection.send_command("get_session_state")
 
 
-def describe_session(state: Dict[str, Any]) -> str:
+def describe_session(
+    state: Dict[str, Any],
+    include_device_params: bool = False,
+) -> str:
     """
     Produce a concise human-readable summary of the session for injection into
     the Claude system prompt.  Keeps it dense but legible.
+
+    Args:
+        state: Raw session state dict from get_session_state().
+        include_device_params: When True, list device parameters (first 6 per
+            device) for all tracks.  Defaults to False to save tokens; pass
+            True when the user's request involves mixing or effects.
     """
     lines: list[str] = []
 
@@ -44,6 +53,33 @@ def describe_session(state: Dict[str, Any]) -> str:
             rc=state.get("return_track_count", 0),
         )
     )
+
+    def _format_devices(devices: list) -> list[str]:
+        device_lines = []
+        for device in devices:
+            if include_device_params:
+                params = device.get("parameters", [])
+                params_summary = ", ".join(
+                    "{n}={v:.3f}".format(n=p.get("name", "?"), v=p.get("value", 0.0))
+                    for p in params[:6]
+                )
+                more = " ..." if len(params) > 6 else ""
+                device_lines.append(
+                    "  Device [{di}] {dn}  |  {ps}{more}".format(
+                        di=device.get("index", "?"),
+                        dn=device.get("name", "?"),
+                        ps=params_summary,
+                        more=more,
+                    )
+                )
+            else:
+                device_lines.append(
+                    "  Device [{di}] {dn}".format(
+                        di=device.get("index", "?"),
+                        dn=device.get("name", "?"),
+                    )
+                )
+        return device_lines
 
     # ---- Regular tracks ----
     lines.append("\n=== Tracks ===")
@@ -67,35 +103,22 @@ def describe_session(state: Dict[str, Any]) -> str:
             )
         )
 
-        # Devices
-        for device in track.get("devices", []):
-            params_summary = ", ".join(
-                "{n}={v:.3f}".format(n=p.get("name", "?"), v=p.get("value", 0.0))
-                for p in device.get("parameters", [])[:6]  # First 6 params
-            )
-            lines.append(
-                "  Device [{di}] {dn}  |  {ps}{more}".format(
-                    di=device.get("index", "?"),
-                    dn=device.get("name", "?"),
-                    ps=params_summary,
-                    more=" ..." if len(device.get("parameters", [])) > 6 else "",
-                )
-            )
+        lines.extend(_format_devices(track.get("devices", [])))
 
-        # Clip slots (non-empty only)
+        # Clip slots — empty slots omitted entirely
         for slot in track.get("clip_slots", []):
-            if slot.get("has_clip") and slot.get("clip"):
-                clip = slot["clip"]
-                note_count = len(clip.get("notes", []))
-                lines.append(
-                    "  Slot [{si}] clip='{cn}'  len={cl}  notes={nc}{playing}".format(
-                        si=slot.get("index", "?"),
-                        cn=clip.get("name", ""),
-                        cl=clip.get("length", 0.0),
-                        nc=note_count,
-                        playing="  PLAYING" if clip.get("is_playing") else "",
-                    )
+            if not (slot.get("has_clip") and slot.get("clip")):
+                continue
+            clip = slot["clip"]
+            lines.append(
+                "  Slot [{si}] clip='{cn}'  len={cl}  notes={nc}{playing}".format(
+                    si=slot.get("index", "?"),
+                    cn=clip.get("name", ""),
+                    cl=clip.get("length", 0.0),
+                    nc=len(clip.get("notes", [])),
+                    playing="  PLAYING" if clip.get("is_playing") else "",
                 )
+            )
 
     # ---- Return tracks ----
     if state.get("return_tracks"):
@@ -109,13 +132,7 @@ def describe_session(state: Dict[str, Any]) -> str:
                     pan=track.get("panning", 0.0),
                 )
             )
-            for device in track.get("devices", []):
-                lines.append(
-                    "  Device [{di}] {dn}".format(
-                        di=device.get("index", "?"),
-                        dn=device.get("name", "?"),
-                    )
-                )
+            lines.extend(_format_devices(track.get("devices", [])))
 
     # ---- Master track ----
     master = state.get("master_track", {})
@@ -126,12 +143,6 @@ def describe_session(state: Dict[str, Any]) -> str:
             pan=master.get("panning", 0.0),
         )
     )
-    for device in master.get("devices", []):
-        lines.append(
-            "  Device [{di}] {dn}".format(
-                di=device.get("index", "?"),
-                dn=device.get("name", "?"),
-            )
-        )
+    lines.extend(_format_devices(master.get("devices", [])))
 
     return "\n".join(lines)
